@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Admin Panel</h1>
+    </header>
+    <main>
+        <section>
+            <section>
+                <h2>Admin Login</h2>
+                <form id="admin-login-form">
+                    <label for="admin-username">Username:</label>
+                    <input type="text" id="admin-username" required>
+            
+                    <label for="admin-password">Password:</label>
+                    <input type="password" id="admin-password" required>
+            
+                    <button type="submit">Login</button>
+                </form>
+            </section>
+            
+            <section id="stock-management" style="display: none;">
+                <h2>Stock Management</h2>
+                <div>
+                    <h3>Add Stock</h3>
+                    <form id="stock-form">
+                        <label for="product">Product Name:</label>
+                        <input type="text" id="product" required>
+            
+                        <label for="quantity">Quantity:</label>
+                        <input type="number" id="quantity" required>
+            
+                        <button type="submit">Add to Stock</button>
+                    </form>
+                </div>
+                <div>
+                    <h3>Current Stock</h3>
+                    <ul id="stock-list"></ul>
+                </div>
+            </section>
+            
+            <script>
+                const adminLoginForm = document.getElementById('admin-login-form');
+                const stockManagementSection = document.getElementById('stock-management');
+                const stockForm = document.getElementById('stock-form');
+                const stockList = document.getElementById('stock-list');
+            
+                let token = null;
+            
+                // Admin Login
+                adminLoginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = document.getElementById('admin-username').value;
+                    const password = document.getElementById('admin-password').value;
+            
+                    const response = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+            
+                    if (response.ok) {
+                        const data = await response.json();
+                        token = data.token;
+                        alert('Login successful!');
+                        adminLoginForm.style.display = 'none';
+                        stockManagementSection.style.display = 'block';
+                        loadStock();
+                    } else {
+                        alert('Invalid credentials.');
+                    }
+                });
+            
+                // Load Stock
+                const loadStock = async () => {
+                    const response = await fetch('/api/stock', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+            
+                    if (response.ok) {
+                        const stock = await response.json();
+                        stockList.innerHTML = '';
+                        stock.forEach(item => {
+                            const li = document.createElement('li');
+                            li.textContent = `${item.product}: ${item.quantity}`;
+                            stockList.appendChild(li);
+                        });
+                    } else {
+                        alert('Failed to load stock.');
+                    }
+                };
+            
+                // Add Stock
+                stockForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const product = document.getElementById('product').value;
+                    const quantity = parseInt(document.getElementById('quantity').value);
+            
+                    const response = await fetch('/api/stock', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ product, quantity })
+                    });
+            
+                    if (response.ok) {
+                        alert('Stock updated!');
+                        stockForm.reset();
+                        loadStock();
+                    } else {
+                        alert('Failed to update stock.');
+                    }
+                });
+            </script>
+            //Repair Management 
+            <section id="repair-management" style="display: none;">
+                <h2>Repair Requests</h2>
+                <ul id="repair-list"></ul>
+            </section>
+            
+            <script>
+                const repairList = document.getElementById('repair-list');
+            
+                // Load Repair Requests
+                const loadRepairs = async () => {
+                    const response = await fetch('/api/repairs', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+            
+                    if (response.ok) {
+                        const repairs = await response.json();
+                        repairList.innerHTML = '';
+                        repairs.forEach((repair) => {
+                            const li = document.createElement('li');
+                            li.innerHTML = `
+                                ${repair.name} (${repair.email}): ${repair.issue} [${new Date(repair.date).toLocaleString()}]
+                                <button onclick="updateRepair('${repair._id}')">Update</button>
+                                <button onclick="deleteRepair('${repair._id}')">Delete</button>
+                            `;
+                            repairList.appendChild(li);
+                        });
+                    } else {
+                        alert('Failed to load repair requests.');
+                    }
+                };
+            
+                // Update Repair Request
+                const updateRepair = async (id) => {
+                    const name = prompt('Enter new name:');
+                    const email = prompt('Enter new email:');
+                    const issue = prompt('Enter new issue:');
+            
+                    if (name && email && issue) {
+                        const response = await fetch(`/api/repairs/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ name, email, issue })
+                        });
+            
+                        if (response.ok) {
+                            alert('Repair request updated.');
+                            loadRepairs();
+                        } else {
+                            alert('Failed to update repair request.');
+                        }
+                    }
+                };
+            
+                // Delete Repair Request
+                const deleteRepair = async (id) => {
+                    if (confirm('Are you sure you want to delete this repair request?')) {
+                        const response = await fetch(`/api/repairs/${id}`, {
+                            method: 'DELETE',
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+            
+                        if (response.ok) {
+                            alert('Repair request deleted.');
+                            loadRepairs();
+                        } else {
+                            alert('Failed to delete repair request.');
+                        }
+                    }
+                };
+            
+                // Extend Admin Login Success
+                adminLoginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = document.getElementById('admin-username').value;
+                    const password = document.getElementById('admin-password').value;
+            
+                    const response = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+            
+                    if (response.ok) {
+                        const data = await response.json();
+                        token = data.token;
+                        alert('Login successful!');
+                        adminLoginForm.style.display = 'none';
+                        stockManagementSection.style.display = 'block';
+                        repairManagementSection.style.display = 'block';
+                        loadStock();
+                        loadRepairs();
+                    } else {
+                        alert('Invalid credentials.');
+                    }
+                });
+            </script>
+            
